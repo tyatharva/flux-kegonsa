@@ -101,14 +101,14 @@ def draw_overlay(ax, case, split_name, allow_test, tx, ty, to_merc):
             ax.plot(mx, my, **kw)
 
     for s in samples[:, i]:
-        outline(s, color=FS.COL["cfm"], lw=0.9, alpha=0.30, zorder=4)
-    outline(fields["CFM"][i], color="#ff1493", lw=3.2, zorder=6)
-    outline(les[i], color=FS.COL["les"], lw=3.0, zorder=6)
+        outline(s, color=FS.COL["cfm"], lw=1.6, alpha=0.55, zorder=4)
+    outline(fields["CFM"][i], color="#ff1493", lw=4.5, zorder=6)
+    outline(les[i], color=FS.COL["les"], lw=4.2, zorder=6)
     wd = float(split.wdir_deg[i])
     dt = str(split.meta["datetime"][i]).replace("T", " ")[:16]
-    hs = [Line2D([], [], color=FS.COL["cfm"], lw=1.2, alpha=0.6, label=f"80% source area of each of the {samples.shape[0]} CFM samples"),
-          Line2D([], [], color="#ff1493", lw=3.2, label="80% source area of the CFM mean"),
-          Line2D([], [], color=FS.COL["les"], lw=3.0, label="80% source area of the LES target")]
+    hs = [Line2D([], [], color=FS.COL["cfm"], lw=1.6, alpha=0.7, label=f"80% source area of each of the {samples.shape[0]} CFM samples"),
+          Line2D([], [], color="#ff1493", lw=4.5, label="80% source area of the CFM mean"),
+          Line2D([], [], color=FS.COL["les"], lw=4.2, label="80% source area of the LES target")]
     ax.legend(handles=hs, loc="lower left", bbox_to_anchor=(0.0, 0.05), fontsize=13, framealpha=0.92, edgecolor="none",
               title=f"{dt} UTC, wind from {wd:.0f}° ({split.octant[i]})", title_fontsize=13).set_zorder(12)
 
@@ -124,6 +124,7 @@ def main(argv=None):
     ap.add_argument("--split", default="val", help="split of --overlay-case")
     ap.add_argument("--allow-test", action="store_true")
     ap.add_argument("--inset", default="upper right", help="inset corner, or 'none'")
+    ap.add_argument("--wash", type=float, default=None, help="imagery opacity of the main map (0-1); default 1, or 0.1 with an overlay")
     a = ap.parse_args(argv)
     if a.overlay_case and a.split == "test" and not a.allow_test:
         raise SystemExit("refusing the test split without --allow-test")
@@ -172,10 +173,13 @@ def main(argv=None):
     plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42})
     fig, ax = plt.subplots(figsize=(a.size, a.size))
     plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
-    ax.imshow(img, extent=ext, origin="upper", interpolation="bilinear", zorder=1)
+    wash = a.wash if a.wash is not None else (0.1 if a.overlay_case else 1.0)
+    ax.set_facecolor("white")
+    ax.imshow(img, extent=ext, origin="upper", interpolation="bilinear", alpha=wash, zorder=1)
+    fg = "w" if wash > 0.5 else "#555555"                              # contour ink readable on the washed map too
     lev = np.arange(np.floor(np.nanmin(topo) / 5) * 5, np.nanmax(topo) + 5, 5)
-    cs = ax.contour(MX, MY, topo, levels=lev, colors="w", linewidths=0.7, alpha=0.85, zorder=3)
-    ax.clabel(cs, fmt="%.0f m", fontsize=8, colors="w", inline=True, inline_spacing=2)
+    cs = ax.contour(MX, MY, topo, levels=lev, colors=fg, linewidths=0.7, alpha=0.85, zorder=3)
+    ax.clabel(cs, fmt="%.0f m", fontsize=8, colors=fg, inline=True, inline_spacing=2)
     ax.add_patch(Polygon(dom, closed=True, fill=False, ec="#ffd400", lw=3.0, zorder=5))
     ax.add_patch(Polygon(arr, closed=True, fill=False, ec="#ff00ff", lw=2.6, zorder=6))
     ax.plot(*tower, marker="*", ms=16, mfc="w", mec="k", mew=0.9, zorder=7)
@@ -187,9 +191,10 @@ def main(argv=None):
     k = 1 / math.cos(math.radians(lat))
     sx, sy = bx0 + 120, by0 + 120
     ax.plot([sx, sx + 1000 * k], [sy, sy], color="w", lw=4, zorder=8); ax.plot([sx, sx + 1000 * k], [sy, sy], color="k", lw=1.5, zorder=9)
-    ax.text(sx + 500 * k, sy + 45, "1 km", color="w", ha="center", fontsize=11, weight="bold", zorder=9)
-    ax.annotate("N", xy=(bx0 + 160, by1 - 120), xytext=(bx0 + 160, by1 - 440), color="w", ha="center", fontsize=16, weight="bold",
-                arrowprops=dict(arrowstyle="-|>", color="w", lw=2.5), zorder=9)
+    ink = "w" if wash > 0.5 else "k"
+    ax.text(sx + 500 * k, sy + 45, "1 km", color=ink, ha="center", fontsize=11, weight="bold", zorder=9)
+    ax.annotate("N", xy=(bx0 + 160, by1 - 120), xytext=(bx0 + 160, by1 - 440), color=ink, ha="center", fontsize=16, weight="bold",
+                arrowprops=dict(arrowstyle="-|>", color=ink, lw=2.5), zorder=9)
     ax.text(bx1 - 40, by0 + 40, "Basemap: Esri World Imagery (Esri, Maxar, Earthstar Geographics, and the GIS User Community)",
             color="w", fontsize=8, ha="right", va="bottom", zorder=9, bbox=dict(fc="black", alpha=0.45, ec="none", pad=3))
     # the inset over the array, placed over the lake (upper right)
