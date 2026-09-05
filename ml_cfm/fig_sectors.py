@@ -1,6 +1,7 @@
-"""Metrics by wind direction: one panel per metric, the four cardinal 90-degree sectors on the
-x axis, Kljun / FNO / CFM as points with 95% record-bootstrap intervals, the perfect value as
-a dashed line, n per sector in the tick labels. Reads the per-record file report_metrics wrote.
+"""Metrics by wind direction: one panel per metric, the four cardinal 90-degree sectors and
+then the whole split ("All", separated by a divider, its values printed beside the points) on
+the x axis, Kljun / FNO / CFM as points with 95% record-bootstrap intervals, the perfect value
+in the panel title, n per group in the tick labels. Reads the per-record file report_metrics wrote.
 
     python -m ml_cfm.fig_sectors [--split val]
 """
@@ -19,10 +20,11 @@ from ml_cfm import final_recipe as FR         # noqa: E402
 from ml_cfm import report_metrics as RM       # noqa: E402
 
 COL = dict(Kljun="#c0392b", FNO="#2e8b57", CFM="#7b3fa0")
-PANELS = (("peak_x", "Peak distance RMSE [m]", "rmse", 0), ("centroid", "Centroid RMSE [m]", "rmse", 0), ("integral", "Integral RMSE", "rmse", 0),
-          ("overlap80", "80% source-area overlap (Jaccard)", "mean", 1), ("rel_l2", "Relative L2 error", "mean", 0),
-          ("sw1_m", "Sliced Wasserstein-1 distance [m]", "mean", 0), ("js_dist", "Jensen–Shannon distance [bits]", "mean", 0),
-          ("ms_ssim", "MS-SSIM on the log grid", "mean", 1))
+# (key, title, statistic, perfect value, print format of the "All" value)
+PANELS = (("peak_x", "Peak distance RMSE [m]", "rmse", 0, "{:.1f}"), ("centroid", "Centroid RMSE [m]", "rmse", 0, "{:.1f}"),
+          ("integral", "Integral RMSE", "rmse", 0, "{:.3f}"), ("overlap80", "80% source-area overlap (Jaccard)", "mean", 1, "{:.3f}"),
+          ("rel_l2", "Relative L2 error", "mean", 0, "{:.3f}"), ("sw1_m", "Sliced Wasserstein-1 distance [m]", "mean", 0, "{:.1f}"),
+          ("js_dist", "Jensen–Shannon distance [bits]", "mean", 0, "{:.3f}"), ("ms_ssim", "MS-SSIM on the log grid", "mean", 1, "{:.3f}"))
 
 
 def stat(x, how):
@@ -36,7 +38,9 @@ def boot(x, how, rng, n=2000):
 
 
 def sector_masks(wdir):
-    return {c: np.abs((wdir - deg + 180) % 360 - 180) <= 45 for c, deg in RM.CARDINAL}
+    m = {c: np.abs((wdir - deg + 180) % 360 - 180) <= 45 for c, deg in RM.CARDINAL}
+    m["All"] = np.ones(len(wdir), bool)
+    return m
 
 
 def main(argv=None):
@@ -55,10 +59,14 @@ def main(argv=None):
     plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42})
     fig, axes = plt.subplots(2, 4, figsize=(18, 8.6))
     plt.subplots_adjust(left=0.05, right=0.985, top=0.875, bottom=0.10, wspace=0.30, hspace=0.45)
-    for ax, (key, label, how, perfect) in zip(axes.ravel(), PANELS):
-        for k in range(4):
+    ng = len(masks)                                   # four sectors + All
+    for ax, (key, label, how, perfect, fmt) in zip(axes.ravel(), PANELS):
+        for k in range(ng - 1):
             if k % 2 == 0:
                 ax.axvspan(k - 0.5, k + 0.5, color="#f3f3f3", zorder=0)
+        ax.axvspan(ng - 1.5, ng - 0.5, color="#e6e6e6", zorder=0)
+        ax.axvline(ng - 1.5, color="#888888", lw=1.0, ls="--", zorder=1)
+        labels = []                                   # (x, y, text, colour) for the All values
         for j, name in enumerate(("Kljun", "FNO", "CFM")):
             xs, ys, lo, hi = [], [], [], []
             for k, (c, m) in enumerate(masks.items()):
@@ -66,13 +74,20 @@ def main(argv=None):
                 xs.append(k + (j - 1) * 0.24); ys.append(v); lo.append(v - l); hi.append(h - v)
             ax.errorbar(xs, ys, yerr=[lo, hi], fmt="o", ms=8, color=COL[name], ecolor=COL[name], elinewidth=1.8, capsize=4.5, capthick=1.6,
                         mec="white", mew=0.8, label=name, zorder=3)
-        ax.set_xticks(range(4)); ax.set_xticklabels([f"{c}\nn = {int(m.sum())}" for c, m in masks.items()], fontsize=11)
+            labels.append((xs[-1], ys[-1] - lo[-1] if perfect == 1 else ys[-1] + hi[-1], fmt.format(ys[-1]), COL[name]))
+        ax.set_xticks(range(ng)); ax.set_xticklabels([f"{c}\nn = {int(m.sum())}" for c, m in masks.items()], fontsize=11)
+        ax.get_xticklabels()[-1].set_fontweight("bold")
         ax.set_title(f"{label}\n(perfect = {perfect})", fontsize=12.5, pad=8); ax.grid(axis="y", alpha=0.3, lw=0.6); ax.tick_params(axis="y", labelsize=10)
-        ax.set_xlim(-0.6, 3.6)
-        if perfect == 1:
-            ax.set_ylim(top=1.0 + 0.02 * (1.0 - ax.get_ylim()[0]))
-        else:
-            ax.set_ylim(bottom=0)
+        ax.set_xlim(-0.6, ng - 0.4)
+        y0, y1 = ax.get_ylim()
+        if perfect == 1:                              # values printed below the lower whisker, room made underneath
+            ax.set_ylim(y0 - 0.30 * (y1 - y0), 1.0 + 0.02 * (1.0 - y0))
+            for x, y, t, c in labels:
+                ax.text(x, y - 0.02 * (y1 - y0), t, rotation=90, ha="center", va="top", fontsize=9.5, color=c, fontweight="bold", zorder=4)
+        else:                                         # printed above the upper whisker
+            ax.set_ylim(0, y1 + 0.30 * y1)
+            for x, y, t, c in labels:
+                ax.text(x, y + 0.02 * y1, t, rotation=90, ha="center", va="bottom", fontsize=9.5, color=c, fontweight="bold", zorder=4)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
     h, l = axes[0, 0].get_legend_handles_labels()
