@@ -124,7 +124,7 @@ def main(argv=None):
     ap.add_argument("--split", default="val", help="split of --overlay-case")
     ap.add_argument("--allow-test", action="store_true")
     ap.add_argument("--inset", default="upper right", help="inset corner, or 'none'")
-    ap.add_argument("--wash", type=float, default=None, help="imagery opacity of the main map (0-1); default 1, or 0.1 with an overlay")
+    ap.add_argument("--wash", type=float, default=None, help="imagery opacity of the main map (0-1); default 1, or 0.9 with an overlay")
     a = ap.parse_args(argv)
     if a.overlay_case and a.split == "test" and not a.allow_test:
         raise SystemExit("refusing the test split without --allow-test")
@@ -173,7 +173,7 @@ def main(argv=None):
     plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42})
     fig, ax = plt.subplots(figsize=(a.size, a.size))
     plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
-    wash = a.wash if a.wash is not None else (0.1 if a.overlay_case else 1.0)
+    wash = a.wash if a.wash is not None else (0.9 if a.overlay_case else 1.0)
     ax.set_facecolor("white")
     ax.imshow(img, extent=ext, origin="upper", interpolation="bilinear", alpha=wash, zorder=1)
     fg = "w" if wash > 0.5 else "#555555"                              # contour ink readable on the washed map too
