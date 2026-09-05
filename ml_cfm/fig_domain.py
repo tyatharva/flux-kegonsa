@@ -4,6 +4,12 @@ full tile resolution over the array with the parameterised rectangle and a trans
 the parameterised tower position, so both can be compared with what the imagery shows.
 
     python -m ml_cfm.fig_domain [--out results/ml_cfm/final_recipe/domain.png]
+    python -m ml_cfm.fig_domain --overlay-case case_2025031921 --split test --allow-test \
+        --out results/ml_cfm/final_recipe/domain_generative_test.png
+
+With --overlay-case the 80% source-area outlines of fig_generative's first panel (every CFM
+sample, the CFM mean, the LES target) are drawn on the imagery, transformed from the LES frame
+to Web Mercator, so one figure serves as both the domain map and the generative figure.
 
 Tiles come from https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer
 (the item linked in the request) and are cached under data/raw/esri_tiles/ (gitignored). All
@@ -75,6 +81,38 @@ def mosaic(x0, x1, y0, y1, z):
     return img, [bx0, bx1, by0, by1]
 
 
+def draw_overlay(ax, case, split_name, allow_test, tx, ty, to_merc):
+    """fig_generative's first panel on the map: the 80% source-area outline of each of the 80
+    CFM samples, of the CFM mean and of the LES target, LES frame -> EPSG:3857."""
+    import contourpy
+    from matplotlib.lines import Line2D
+    from ml_cfm import report_metrics as RM
+    from ml_cfm import figstyle as FS
+    from ml_cfm.fig_generative import level80
+    split = D.load_split(split_name, allow_test=allow_test)
+    valid = split.valid_mask.astype(np.float32)
+    fields, les, samples = RM.recipe_fields(split, valid)
+    i = int(np.where(split.meta["run_id"].astype(str) == case)[0][0])
+    xc = (np.arange(D.N) - D.IJ_RECEPTOR) * D.DX
+
+    def outline(f, **kw):
+        for seg in contourpy.contour_generator(xc, xc, np.asarray(f, np.float64)).lines(level80(f)):
+            mx, my = to_merc.transform(tx + seg[:, 0], ty + seg[:, 1])
+            ax.plot(mx, my, **kw)
+
+    for s in samples[:, i]:
+        outline(s, color=FS.COL["cfm"], lw=0.9, alpha=0.30, zorder=4)
+    outline(fields["CFM"][i], color="#ff1493", lw=3.2, zorder=6)
+    outline(les[i], color=FS.COL["les"], lw=3.0, zorder=6)
+    wd = float(split.wdir_deg[i])
+    dt = str(split.meta["datetime"][i]).replace("T", " ")[:16]
+    hs = [Line2D([], [], color=FS.COL["cfm"], lw=1.2, alpha=0.6, label=f"80% source area of each of the {samples.shape[0]} CFM samples"),
+          Line2D([], [], color="#ff1493", lw=3.2, label="80% source area of the CFM mean"),
+          Line2D([], [], color=FS.COL["les"], lw=3.0, label="80% source area of the LES target")]
+    ax.legend(handles=hs, loc="lower left", bbox_to_anchor=(0.0, 0.05), fontsize=13, framealpha=0.92, edgecolor="none",
+              title=f"{dt} UTC, wind from {wd:.0f}° ({split.octant[i]})", title_fontsize=13).set_zorder(12)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=os.path.join(REPO, "results", "ml_cfm", "final_recipe", "domain.png"))
@@ -82,7 +120,13 @@ def main(argv=None):
     ap.add_argument("--zoom-inset", type=int, default=19)
     ap.add_argument("--dpi", type=int, default=300)
     ap.add_argument("--size", type=float, default=15.0, help="figure side [in]")
+    ap.add_argument("--overlay-case", default=None, help="run_id whose 80% source-area outlines (samples, CFM mean, LES) to draw")
+    ap.add_argument("--split", default="val", help="split of --overlay-case")
+    ap.add_argument("--allow-test", action="store_true")
+    ap.add_argument("--inset", default="upper right", help="inset corner, or 'none'")
     a = ap.parse_args(argv)
+    if a.overlay_case and a.split == "test" and not a.allow_test:
+        raise SystemExit("refusing the test split without --allow-test")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -136,6 +180,8 @@ def main(argv=None):
     ax.add_patch(Polygon(arr, closed=True, fill=False, ec="#ff00ff", lw=2.6, zorder=6))
     ax.plot(*tower, marker="*", ms=16, mfc="w", mec="k", mew=0.9, zorder=7)
     ax.set_xlim(bx0, bx1); ax.set_ylim(by0, by1); ax.set_aspect("equal"); ax.set_xticks([]); ax.set_yticks([])
+    if a.overlay_case:
+        draw_overlay(ax, a.overlay_case, a.split, a.allow_test, tx, ty, to_merc)
     # scale bar and north arrow (Web Mercator scale factor at this latitude)
     lat = P6.TOWER_LAT
     k = 1 / math.cos(math.radians(lat))
@@ -151,7 +197,14 @@ def main(argv=None):
     ix0, ix1 = arr[:, 0].min() - ipad, arr[:, 0].max() + ipad
     iy0, iy1 = arr[:, 1].min() - ipad, arr[:, 1].max() + ipad
     iimg, iext = mosaic(ix0, ix1, iy0, iy1, a.zoom_inset)
-    axins = inset_axes(ax, width="30%", height="50%", loc="upper right", bbox_to_anchor=(-0.005, -0.03, 1, 1), bbox_transform=ax.transAxes, borderpad=0)
+    if a.inset == "none":
+        os.makedirs(os.path.dirname(a.out), exist_ok=True)
+        fig.savefig(a.out, dpi=a.dpi)
+        print("wrote", a.out)
+        return 0
+    anchor = {"upper right": (-0.005, -0.03, 1, 1), "upper left": (0.005, -0.03, 1, 1),
+              "lower right": (-0.005, 0.045, 1, 1), "lower left": (0.005, 0.045, 1, 1)}[a.inset]
+    axins = inset_axes(ax, width="30%", height="50%", loc=a.inset, bbox_to_anchor=anchor, bbox_transform=ax.transAxes, borderpad=0)
     axins.imshow(iimg, extent=iext, origin="upper", interpolation="bilinear", zorder=1)
     axins.add_patch(Polygon(arr, closed=True, fill=False, ec="#ff00ff", lw=3.0, zorder=6))
     axins.plot(*tower, marker="*", ms=30, mfc=(1, 1, 1, 0.45), mec="k", mew=1.2, zorder=7)
