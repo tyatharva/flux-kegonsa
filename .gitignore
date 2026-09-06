@@ -112,3 +112,6 @@ results/ml_cfm/test/*.npz
 
 # --- figure scripts write their PNGs beside the recipe; the tracked copies are figures/poster/ ---
 results/ml_cfm/final_recipe/*.png
+
+# mkdocs build output
+site/
