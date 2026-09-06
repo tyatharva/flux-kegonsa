@@ -3,7 +3,7 @@
 ```
 figures/cone/                 the nine pair figures on corpus_cone.h5, the training set
 figures/cone_mask_effect.png  how the cone was derived and what it did
-figures/poster/               the five final emulator figures, 600 dpi (see Results)
+figures/poster/               the six final emulator figures, 600 dpi (see Results)
 ```
 
 ## Regenerate the pair figures

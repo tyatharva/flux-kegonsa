@@ -33,15 +33,16 @@ in bits between the unit-mass positive parts. MS-SSIM is 5-scale SSIM on the log
 floor 1e-9 m⁻². Sector (90°) and octant (45°) breakdowns are in `metrics_test.json` and the
 per-record `.npz`.
 
-### The five figures (`figures/poster/`, 600 dpi)
+### The six figures (`figures/poster/`, 600 dpi)
 
 | file | what it shows |
 |---|---|
 | `showcase_test.png` | four test cases (2025-05-31 15Z N, 2025-02-09 06Z NW, 2025-11-04 21Z S, 2025-04-20 16Z E), LES / Kljun / FNO / CFM on Esri imagery with the crosswind-integrated profiles and a per-case metric table. Pinned with `--cases`. Row 3 is the S-sector case where the CFM leads on the most metrics |
 | `generative_test.png` | one N case (2025-03-19 21Z): the CFM's sample cloud, its mean contour and its 90% band beside the LES |
-| `sectors_test.png` | the metrics by wind sector, both emulators against Kljun |
+| `sectors_test.png` | the metrics by wind sector and for the whole split (the `All` group, values printed beside the points), both emulators against Kljun |
 | `distributions_test.png` | ECDFs of the per-record errors, central 90% |
 | `domain.png` | the domain, the tower, the array and the lake on imagery with 3DEP contours |
+| `domain_generative_test.png` | the domain map with the generative figure's 80% source-area outlines (every CFM sample, the CFM mean, the LES target) for the same N case drawn on the imagery. `fig_domain.py --overlay-case case_2025031921 --split test --allow-test` |
 
 ## The test split was read once
 
@@ -52,7 +53,8 @@ test split was read on 2026-09-04, on instruction, after the recipe and the metr
 frozen on val. `ml_cfm/test_predictions.py --allow-test` wrote each FNO seed's prediction and
 20 fresh CFM samples per seed (Euler 16, RNG seed 0) to `results/ml_cfm/test/` (181 MB, on
 Hugging Face. `SHA256SUMS.txt` is committed). Then `report_metrics.py`, `fig_showcase.py` and
-`fig_generative.py` read it. Nothing was changed after seeing the numbers.
+`fig_generative.py` read it. On 2026-09-05 `fig_domain.py --allow-test` read it again for the
+source-area overlay of the same generative case. Nothing was changed after seeing the numbers.
 `bin/test_ml_data.py` fails if any test-split read in the audit log lacks `allow_test`.
 
 ## The frozen recipe (`ml_cfm/final_recipe.py`)

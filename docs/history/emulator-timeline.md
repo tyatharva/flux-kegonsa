@@ -77,6 +77,10 @@ exploration round.
 - The poster set: the five final figures at 600 dpi (showcase 18 × 12 in), scientific labels,
   no figure titles. 22 superseded figures deleted. Then the six figures of the first CFM run
   removed on request, leaving the five under `figures/poster/`.
+- 2026-09-05: `fig_sectors.py` gains the whole-split `All` group with its values printed beside
+  the points. `fig_domain.py` gains `--overlay-case`, `--wash` and thicker source-area outlines.
+  `domain_generative_test.png` (the domain map with the generative case's 80% source areas) is
+  the sixth poster figure. One further audited test read, by `fig_domain.py`.
 
 The full per-run records behind this page (`results/ml/phase1/*/run.json`, `results/ml/phase2/trials/`,
 `results/ml/haze/*/run.json`, `results/ml_cfm/TIMELINE.md`) were condensed here on 2026-09-04

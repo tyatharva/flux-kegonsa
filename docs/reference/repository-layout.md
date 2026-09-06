@@ -20,7 +20,7 @@ flux-kegonsa/
 ├── data/                                README. grid30_raised/ (the production surface, tracked). Raw tiles and caches (not in git)
 ├── seeds/                               the 30-seed library: specs, manifests and verdicts (restarts on Hugging Face)
 ├── corpus/                              README, INDEX.json, FLAGGED.tsv, provenance/ (the .h5 and .npz on Hugging Face)
-├── figures/                             cone/ (the nine pair figures), cone_mask_effect.png, poster/ (the five final figures)
+├── figures/                             cone/ (the nine pair figures), cone_mask_effect.png, poster/ (the six final figures)
 ├── results/                             every scored artifact behind a number in these pages (below)
 ├── validation_pairs_30m/                the two-window pair of case_2023111718: the realisation floor
 ├── docs/                                these pages
