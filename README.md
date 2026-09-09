@@ -1,14 +1,14 @@
 # flux-kegonsa
 
+**Note:** Documenation was written by Claude Fable 5.1 based on my own notes of the project,
+and for now remains unreviewed by me as of this commit. Beware of any overly wordy, dense,
+or confusing passages; I am happy to answer any questions!
+
 A site-calibrated flux-footprint emulator for the UW-Madison Kegonsa Solar Array
 eddy-covariance tower. It takes the six scalars the Kljun et al. (2015) footprint model takes
 and returns, in milliseconds, the two-dimensional footprint that a large-eddy simulation of
 this site would produce. The training targets are 1366 FastEddy large-eddy simulations with a
 backward Lagrangian particle model, one per day over five years, forced by real HRRR analyses.
-
-**Note:** Documenation was written by Claude Fable 5.1 based on my own notes of the project,
-and for now remains unreviewed by me as of this commit. Beware of any overly wordy, dense,
-or confusing passages; I am happy to answer any questions!
 
 ## The result
 
